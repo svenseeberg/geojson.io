@@ -32,6 +32,10 @@ module.exports = function fileBar(context) {
     {
       title: 'Load',
       action: serverLoad
+    },
+    {
+      title: 'Data Manager',
+      action: openDataManager
     }
   ];
 
@@ -336,7 +340,24 @@ module.exports = function fileBar(context) {
   }
 
   function serverLoad() {
-    console.log('foo');
+    window.geojson_id = window.prompt('Please enter a GeoJSON/WKT ID.', '1');
+    const url = '/backend/geojson/data/' + window.geojson_id;
+    d3.json(url, (gj) => {
+      console.log(gj);
+      gj = geojsonNormalize(gj);
+      if (gj) {
+        context.data.mergeFeatures(gj.features);
+        flash(
+          context.container,
+          'Imported ' + gj.features.length + ' features.'
+        ).classed('success', 'true');
+        zoomextent(context);
+      }
+    });
+  }
+
+  function openDataManager() {
+    window.open('/backend/crud/', '_blank').focus();
   }
 
   function serverSave() {
@@ -351,7 +372,10 @@ module.exports = function fileBar(context) {
 
   function sendToServer(GeoJsonContent, WktContent) {
     const xhr = new XMLHttpRequest();
-    const url = '/backend/geojson/1';
+    if (typeof window.geojson_id === 'undefined') {
+      window.geojson_id = window.prompt('Please enter a GeoJSON/WKT ID.', '1');
+    }
+    const url = '/backend/geojson/' + window.geojson_id;
     xhr.open('POST', url, true);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.onreadystatechange = function () {
