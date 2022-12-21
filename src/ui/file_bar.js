@@ -24,6 +24,21 @@ module.exports = function fileBar(context) {
   const mapboxAPI = false;
   const githubAPI = !!config.GithubAPI;
 
+  const serverInteractions = [
+    {
+      title: 'Save',
+      action: serverSave
+    },
+    {
+      title: 'Load',
+      action: serverLoad
+    },
+    {
+      title: 'Data Manager',
+      action: openDataManager
+    }
+  ];
+
   const exportFormats = [
     {
       title: 'GeoJSON',
@@ -56,6 +71,11 @@ module.exports = function fileBar(context) {
 
   function bar(selection) {
     const actions = [
+      {
+        title: 'Server',
+        alt: 'Save and load WKT to/from server',
+        children: serverInteractions
+      },
       {
         title: 'Open',
         alt: 'CSV, GTFS, KML, GPX, and other filetypes',
@@ -317,6 +337,55 @@ module.exports = function fileBar(context) {
       }),
       'points.csv'
     );
+  }
+
+  function serverLoad() {
+    window.geojson_id = window.prompt('Please enter a GeoJSON/WKT ID.', '1');
+    const url = '/backend/geojson/data/' + window.geojson_id;
+    d3.json(url, (gj) => {
+      console.log(gj);
+      gj = geojsonNormalize(gj);
+      if (gj) {
+        context.data.mergeFeatures(gj.features);
+        flash(
+          context.container,
+          'Imported ' + gj.features.length + ' features.'
+        ).classed('success', 'true');
+        zoomextent(context);
+      }
+    });
+  }
+
+  function openDataManager() {
+    window.open('/backend/crud/', '_blank').focus();
+  }
+
+  function serverSave() {
+    if (d3.event) d3.event.preventDefault();
+    const features = context.data.get('map').features;
+    if (features.length === 0) return;
+    sendToServer(
+      JSON.stringify(context.data.get('map')),
+      features.map(wellknown.stringify).join('\n')
+    );
+  }
+
+  function sendToServer(GeoJsonContent, WktContent) {
+    const xhr = new XMLHttpRequest();
+    if (typeof window.geojson_id === 'undefined') {
+      window.geojson_id = window.prompt('Please enter a GeoJSON/WKT ID.', '1');
+    }
+    const url = '/backend/geojson/' + window.geojson_id;
+    xhr.open('POST', url, true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState === 4 && xhr.status === 200) {
+        const json = JSON.parse(xhr.responseText);
+        console.log(json);
+      }
+    };
+    const data = JSON.stringify({ wkt: WktContent, geojson: GeoJsonContent });
+    xhr.send(data);
   }
 
   function downloadKML() {
