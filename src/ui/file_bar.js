@@ -24,6 +24,17 @@ module.exports = function fileBar(context) {
   const mapboxAPI = false;
   const githubAPI = !!config.GithubAPI;
 
+  const serverInteractions = [
+    {
+      title: 'Save',
+      action: serverSave
+    },
+    {
+      title: 'Load',
+      action: serverLoad
+    }
+  ];
+
   const exportFormats = [
     {
       title: 'GeoJSON',
@@ -56,6 +67,11 @@ module.exports = function fileBar(context) {
 
   function bar(selection) {
     const actions = [
+      {
+        title: 'Server',
+        alt: 'Save and load WKT to/from server',
+        children: serverInteractions
+      },
       {
         title: 'Open',
         alt: 'CSV, GTFS, KML, GPX, and other filetypes',
@@ -317,6 +333,35 @@ module.exports = function fileBar(context) {
       }),
       'points.csv'
     );
+  }
+
+  function serverLoad() {
+    console.log('foo');
+  }
+
+  function serverSave() {
+    if (d3.event) d3.event.preventDefault();
+    const features = context.data.get('map').features;
+    if (features.length === 0) return;
+    sendToServer(
+      JSON.stringify(context.data.get('map')),
+      features.map(wellknown.stringify).join('\n')
+    );
+  }
+
+  function sendToServer(GeoJsonContent, WktContent) {
+    const xhr = new XMLHttpRequest();
+    const url = '/backend/geojson/1';
+    xhr.open('POST', url, true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState === 4 && xhr.status === 200) {
+        const json = JSON.parse(xhr.responseText);
+        console.log(json);
+      }
+    };
+    const data = JSON.stringify({ wkt: WktContent, geojson: GeoJsonContent });
+    xhr.send(data);
   }
 
   function downloadKML() {
