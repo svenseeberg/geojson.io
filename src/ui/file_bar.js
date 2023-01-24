@@ -36,6 +36,10 @@ module.exports = function fileBar(context) {
     {
       title: 'Data Manager',
       action: openDataManager
+    },
+    {
+      title: 'Open URL',
+      action: openGeojsonUrl
     }
   ];
 
@@ -339,10 +343,31 @@ module.exports = function fileBar(context) {
     );
   }
 
+  function openGeojsonUrl() {
+    window.open(window.geojson_url, '_blank').focus();
+  }
+
   function serverLoad() {
     window.geojson_id = window.prompt('Please enter a GeoJSON/WKT ID.', '1');
-    const url = '/backend/geojson/data/' + window.geojson_id;
-    d3.json(url, (gj) => {
+    const url = '/backend/geojson/' + window.geojson_id;
+    fetch(url)
+      .then((response) => {
+        if (response.ok) {
+          return response.json();
+        } else if (response.status === 404) {
+          window.alert('GeoJSON/WKT not found.');
+        } else {
+          return Promise.reject(response.status);
+        }
+      })
+      .then((data) => {
+        console.log(data.url);
+        window.geojson_url = data.url;
+      })
+      .catch((error) => console.log(error));
+
+    const url_geojson = '/backend/geojson/data/' + window.geojson_id;
+    d3.json(url_geojson, (gj) => {
       console.log(gj);
       gj = geojsonNormalize(gj);
       if (gj) {
